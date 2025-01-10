@@ -1,0 +1,87 @@
+@page "/register"
+@inject HttpClient Http
+@using Shared.Models
+@using System.Net.Http.Json
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <h3 class="text-center mb-4">Rekisteröidy</h3>
+
+            <EditForm Model="User" OnValidSubmit="HandleRegister">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label" for="email">Sähköposti:</label>
+                    <InputText id="email" class="form-control" @bind-Value="User.Email" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Salasana:</label>
+                    <InputText id="password" type="password" class="form-control" @bind-Value="User.Password" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="firstName">Etunimi:</label>
+                    <InputText id="firstName" class="form-control" @bind-Value="User.FirstName" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="lastName">Sukunimi:</label>
+                    <InputText id="lastName" class="form-control" @bind-Value="User.LastName" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="address">Osoite:</label>
+                    <InputText id="address" class="form-control" @bind-Value="User.Address" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="phoneNumber">Puhelinnumero:</label>
+                    <InputText id="phoneNumber" class="form-control" @bind-Value="User.PhoneNumber" />
+                </div>
+                <div class="mb-3 text-center">
+                    <button type="submit" class="btn btn-primary">Rekisteröidy</button>
+                </div>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(Message))
+            {
+                <div class="alert @(IsSuccess ? "alert-success" : "alert-danger")" role="alert">
+                    @Message
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    // Käyttäjän tiedot UserModel-oliolla
+    private UserModel User { get; set; } = new UserModel { Role = "Customer" };
+    private string Message { get; set; } = string.Empty; // Viesti rekisteröinnin tuloksesta
+    private bool IsSuccess { get; set; } = false;
+
+    // Metodi, joka lähettää rekisteröintitiedot backendille
+    private async Task HandleRegister()
+    {
+        // Ensure the role is set to "Customer"
+        User.Role = "Customer";
+        Console.WriteLine($"User role before sending request: {User.Role}"); // Debug statement
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/auth/register", User);
+            if (response.IsSuccessStatusCode)
+            {
+                Message = "Rekisteröinti onnistui!";
+                IsSuccess = true;
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                Message = $"Rekisteröinti epäonnistui: {errorResponse}";
+                IsSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Message = $"Virhe: {ex.Message}";
+            IsSuccess = false;
+        }
+    }
+}

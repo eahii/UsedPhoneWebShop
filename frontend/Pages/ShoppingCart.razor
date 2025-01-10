@@ -1,0 +1,143 @@
+@page "/cart"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@using Shared.Models
+
+<h3>Ostoskori</h3>
+
+@if (isLoading)
+{
+    <p>Ladataan ostoskoria...</p>
+}
+else if (cartItems == null || !cartItems.Any())
+{
+    <p>Ostoskori on tyhjä.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tuote</th>
+                    <th>Hinta</th>
+                    <th>Määrä</th>
+                    <th>Yhteensä</th>
+                    <th>Toiminnot</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in cartItems)
+                {
+                    <tr>
+                        <td>@item.Phone.Brand @item.Phone.Model</td>
+                        <td>@item.Phone.Price €</td>
+                        <td>
+                            <div class="input-group" style="max-width: 150px;">
+                                <button class="btn btn-outline-secondary" @onclick="() => UpdateQuantity(item, -1)">-</button>
+                                <input type="number" class="form-control text-center" value="@item.Quantity"
+                                    @onchange="@(e => UpdateQuantity(item, int.Parse(e.Value.ToString()) - item.Quantity))" />
+                                <button class="btn btn-outline-secondary" @onclick="() => UpdateQuantity(item, 1)">+</button>
+                            </div>
+                        </td>
+                        <td>@(item.Phone.Price * item.Quantity) €</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" @onclick="() => RemoveFromCart(item.CartItemID)">
+                                <span class="oi oi-trash"></span> Poista
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-end"><strong>Yhteensä:</strong></td>
+                    <td><strong>@cartItems.Sum(item => item.Phone.Price * item.Quantity) €</strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary" @onclick="NavigateToCheckout">
+            Siirry kassalle
+        </button>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<CartItemWithPhone> cartItems;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCart();
+    }
+
+    private async Task LoadCart()
+    {
+        try
+        {
+            isLoading = true;
+            cartItems = await Http.GetFromJsonAsync<List<CartItemWithPhone>>("/api/cart");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe ostoskorin lataamisessa: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateQuantity(CartItemWithPhone item, int change)
+    {
+        var newQuantity = item.Quantity + change;
+        if (newQuantity < 1) return;
+
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"/api/cart/items/{item.CartItemID}", new { quantity = newQuantity });
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadCart();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe määrän päivittämisessä: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveFromCart(int cartItemId)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Haluatko varmasti poistaa tuotteen ostoskorista?"))
+            return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/cart/items/{cartItemId}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadCart();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe tuotteen poistamisessa: {ex.Message}");
+        }
+    }
+
+    private void NavigateToCheckout()
+    {
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private async Task Checkout()
+    {
+        // Tämä metodi voidaan poistaa, jos siirrytään käyttämään navigointia
+    }
+}

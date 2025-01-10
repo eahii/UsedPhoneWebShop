@@ -1,0 +1,275 @@
+@page "/offer"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@using Shared.Models
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h3 class="text-center mb-4">Myy Puhelimesi!</h3>
+
+            <div class="offer-container">
+                <div class="mb-3">
+                    <label class="form-label" for="phoneBrand">Puhelimen merkki:</label>
+                    <select id="phoneBrand" class="form-select"
+                        @onchange="(e) => { phoneBrand = e.Value.ToString(); OnBrandChanged(); }">
+                        <option value="">-- Valitse merkki --</option>
+                        <option value="Apple">Apple</option>
+                    </select>
+                </div>
+
+                @if (phoneBrand == "Apple")
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="phoneModel">Puhelimen malli:</label>
+                        <select id="phoneModel" class="form-select"
+                            @onchange="(e) => { phoneModel = e.Value.ToString(); OnModelOrMemoryChanged(); }">
+                            <option value="">-- Valitse malli --</option>
+                            <option value="iPhone 16">iPhone 16</option>
+                            <option value="iPhone 15">iPhone 15</option>
+                            <option value="iPhone 14">iPhone 14</option>
+                        </select>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(phoneModel))
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="phoneMemory">Muisti (GB):</label>
+                        <select id="phoneMemory" class="form-select"
+                            @onchange="(e) => { phoneMemory = e.Value.ToString(); OnModelOrMemoryChanged(); }">
+                            <option value="">-- Valitse muisti --</option>
+                            @foreach (var memoryOption in GetMemoryOptions(phoneModel))
+                            {
+                                <option value="@memoryOption">@memoryOption</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label" for="overallCondition">Yleinen Kunto:</label>
+                    <select id="overallCondition" class="form-select" @bind="overallCondition">
+                        <option value="25">Huono</option>
+                        <option value="50">OK</option>
+                        <option value="75">Hyvä</option>
+                        <option value="100">Erinomainen</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="screenCondition">Näytön Kunto:</label>
+                    <select id="screenCondition" class="form-select" @bind="screenCondition">
+                        <option value="25">Huono</option>
+                        <option value="50">OK</option>
+                        <option value="75">Hyvä</option>
+                        <option value="100">Erinomainen</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Toimiiko puhelin normaalisti?</label>
+                    <div>
+                        <input type="radio" id="worksYes" name="works" value="true"
+                            @onchange="(e) => worksNormally = true" />
+                        <label for="worksYes">Joo</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="worksNo" name="works" value="false"
+                            @onchange="(e) => worksNormally = false" />
+                        <label for="worksNo">Ei</label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="batteryLife">Akunkesto: @batteryLife% </label>
+                    <input type="range" id="batteryLife" class="form-range" min="1" max="100" @bind="batteryLife"
+                        @bind:event="oninput" aria-valuemin="1" aria-valuemax="100" aria-valuenow="@batteryLife"
+                        aria-label="Akunkesto" />
+                </div>
+
+                <div class="mb-3 text-center">
+                    <button class="btn btn-primary" @onclick="CalculateResellValue">Laske Arvio</button>
+                </div>
+
+                @if (resellValue.HasValue)
+                {
+                    <div class="alert alert-info text-center">
+                        <strong>Arvioitu myyntihinta:</strong> @resellValue.Value.ToString("C2")
+                    </div>
+                }
+
+                <div class="mb-3 text-center">
+                    <button class="btn btn-success" @onclick="SubmitOffer">Lähetä Arvio</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string phoneBrand = ""; // Merkki tyhjä aluksi
+    private string phoneModel = "";
+    private string phoneMemory = "";
+    private decimal originalPrice = 0;
+    private int phoneAge = 0;
+    private int overallCondition = 100;
+    private int batteryLife = 100;
+    private int screenCondition = 100;
+    private int cameraCondition = 100;
+    private bool? worksNormally = null;
+    private decimal? resellValue;
+
+    private IEnumerable<string> GetMemoryOptions(string model)
+    {
+        return model switch
+        {
+            "iPhone 16" => new List<string> { "128GB", "256GB", "512GB" },
+            "iPhone 15" => new List<string> { "128GB", "256GB", "512GB" },
+            "iPhone 14" => new List<string> { "128GB", "256GB", "512GB" },
+            _ => Enumerable.Empty<string>()
+        };
+    }
+
+    private void OnBrandChanged()
+    {
+        phoneModel = "";
+        phoneMemory = "";
+        originalPrice = 0;
+    }
+
+    private void UpdateOriginalPrice()
+    {
+        originalPrice = phoneModel switch
+        {
+            "iPhone 16" => 750m,
+            "iPhone 15" => 600m,
+            "iPhone 14" => 500m,
+            _ => 0m
+        };
+    }
+
+    private void CalculateResellValue()
+    {
+        // Päivitetään alkuperäinen hinta ennen laskemista
+        UpdateOriginalPrice();
+
+        // Esimerkkiarviointilogiikka
+        resellValue = originalPrice * 0.7m
+        - ((worksNormally ?? false) ? 0 : 100)// Jos ei toimi, vähennä merkittävä summa
+        - (100 - overallCondition)
+        - (100 - batteryLife)
+        - (100 - screenCondition)
+        - (100 - cameraCondition);
+        if (resellValue < 0) resellValue = 0;
+    }
+
+    private async Task SubmitOffer()
+    {
+        var offer = new OfferModel
+            {
+                PhoneBrand = phoneBrand,
+                PhoneModel = phoneModel,
+                PhoneMemory = phoneMemory, // Include memory in the offer
+                OriginalPrice = originalPrice,
+                PhoneAge = phoneAge,
+                OverallCondition = overallCondition,
+                BatteryLife = batteryLife,
+                ScreenCondition = screenCondition,
+                CameraCondition = cameraCondition,
+                WorksNormally = worksNormally ?? false, // Lähetä uusi tieto
+                Status = "Pending",
+                SubmissionDate = DateTime.UtcNow
+            };
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/offers", offer);
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Arviosi lähetettiin vahvistettavaksi!");
+                // Tyhjennä lomake tarvittaessa
+                ClearForm();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Virhe arvioita lähetettäessä: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe arvioita lähetettäessä: {ex.Message}");
+        }
+    }
+
+    private void ClearForm()
+    {
+        phoneBrand = ""; // Tyhjennetään merkki
+        phoneModel = "";
+        phoneMemory = "";
+        originalPrice = 0;
+        phoneAge = 0;
+        overallCondition = 100;
+        batteryLife = 100;
+        screenCondition = 100;
+        cameraCondition = 100;
+        worksNormally = null; // Palauta oletusarvoksi "Joo"
+        resellValue = null;
+    }
+
+    @code {
+        private string validationError = ""; // Validointivirheet
+
+        private void ValidateForm()
+        {
+            validationError = "";
+
+            if (string.IsNullOrEmpty(phoneBrand))
+            {
+                validationError = "Valitse puhelimen merkki.";
+            }
+            else if (string.IsNullOrEmpty(phoneModel))
+            {
+                validationError = "Valitse puhelimen malli.";
+            }
+            else if (string.IsNullOrEmpty(phoneMemory))
+            {
+                validationError = "Valitse muisti.";
+            }
+            else if (overallCondition < 25 || overallCondition > 100)
+            {
+                validationError = "Yleinen kunto on oltava 25–100 välillä.";
+            }
+            else if (screenCondition < 25 || screenCondition > 100)
+            {
+                validationError = "Näytön kunto on oltava 25–100 välillä.";
+            }
+            else if (!worksNormally.HasValue)
+            {
+                validationError = "Valitse, toimiiko puhelin normaalisti.";
+            }
+            else if (batteryLife < 1 || batteryLife > 100)
+            {
+                validationError = "Akunkeston on oltava 1–100 välillä.";
+            }
+        }
+
+        private async Task ValidateAndSubmitOffer()
+        {
+            ValidateForm();
+
+            if (string.IsNullOrEmpty(validationError))
+            {
+                await SubmitOffer();
+            }
+        }
+    }
+
+
+        // Päivitetään hinta kun malli tai muisti muuttuu
+        private void OnModelOrMemoryChanged()
+        {
+    UpdateOriginalPrice();
+        }
+}

@@ -1,0 +1,379 @@
+@page "/phones"
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Shared.Models
+@using System.Security.Claims
+@using Shared.DTOs
+
+<h3>Puhelimet</h3>
+
+@if (!isAuthorized)
+{
+    <div class="alert alert-danger">
+        <strong>Pääsy estetty:</strong> Sinulla ei ole oikeuksia tähän toimintoon.
+    </div>
+}
+else
+{
+    <!-- Add Phone Button -->
+    <div class="mb-3">
+        <button class="btn btn-success" @onclick="ShowAddDialog">
+            <span class="oi oi-plus"></span> Lisää uusi puhelin
+        </button>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filters mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <input type="text" class="form-control" @bind="brandFilter" placeholder="Merkki" />
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" @bind="modelFilter" placeholder="Malli" />
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" @bind="conditionFilter" placeholder="Kunto" />
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" @bind="maxPriceFilter" placeholder="Maksimihinta" />
+            </div>
+        </div>
+        <button class="btn btn-primary mt-2" @onclick="FilterPhones">Hae</button>
+    </div>
+
+    <!-- Phones List -->
+    @if (phones == null)
+    {
+        <p>Ladataan...</p>
+    }
+    else if (!phones.Any())
+    {
+        <p>Puhelimia ei löytynyt.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Merkki</th>
+                        <th>Malli</th>
+                        <th>Hinta</th>
+                        <th>Kunto</th>
+                        <th>Varastossa</th>
+                        <th>Toiminnot</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var phone in phones)
+                    {
+                        <tr>
+                            <td>@phone.Brand</td>
+                            <td>@phone.Model</td>
+                            <td>@phone.Price €</td>
+                            <td>@phone.Condition</td>
+                            <td>@phone.StockQuantity</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" @onclick="() => ShowEditDialog(phone)">Muokkaa</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeletePhone(phone.PhoneID)">Poista</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <!-- Add Phone Dialog -->
+    @if (newPhone != null)
+    {
+        <div class="modal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Lisää uusi puhelin</h5>
+                        <button type="button" class="btn-close" @onclick="CloseAddDialog"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Merkki</label>
+                            <input type="text" class="form-control" @bind="newPhone.Brand" />
+                        </div>
+                        <div class="form-group">
+                            <label>Malli</label>
+                            <input type="text" class="form-control" @bind="newPhone.Model" />
+                        </div>
+                        <div class="form-group">
+                            <label>Hinta</label>
+                            <input type="number" class="form-control" @bind="newPhone.Price" />
+                        </div>
+                        <div class="form-group">
+                            <label>Kuvaus</label>
+                            <textarea class="form-control" @bind="newPhone.Description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Kunto</label>
+                            <input type="text" class="form-control" @bind="newPhone.Condition" />
+                        </div>
+                        <div class="form-group">
+                            <label>Varastossa</label>
+                            <input type="number" class="form-control" @bind="newPhone.StockQuantity" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseAddDialog">Peruuta</button>
+                        <button type="button" class="btn btn-primary" @onclick="AddPhone">Tallenna</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Edit Phone Dialog -->
+    @if (editingPhone != null)
+    {
+        <div class="modal" tabindex="-1" style="display: block; background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Muokkaa puhelinta</h5>
+                        <button type="button" class="btn-close" @onclick="CloseEditDialog"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Merkki</label>
+                            <input type="text" class="form-control" @bind="editingPhone.Brand" />
+                        </div>
+                        <div class="form-group">
+                            <label>Malli</label>
+                            <input type="text" class="form-control" @bind="editingPhone.Model" />
+                        </div>
+                        <div class="form-group">
+                            <label>Hinta</label>
+                            <input type="number" class="form-control" @bind="editingPhone.Price" />
+                        </div>
+                        <div class="form-group">
+                            <label>Kuvaus</label>
+                            <textarea class="form-control" @bind="editingPhone.Description"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Kunto</label>
+                            <input type="text" class="form-control" @bind="editingPhone.Condition" />
+                        </div>
+                        <div class="form-group">
+                            <label>Varastossa</label>
+                            <input type="number" class="form-control" @bind="editingPhone.StockQuantity" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseEditDialog">Peruuta</button>
+                        <button type="button" class="btn btn-primary" @onclick="SavePhone">Tallenna</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<PhoneModel> phones;
+    private PhoneModel editingPhone;
+    private PhoneModel newPhone;
+    private string brandFilter;
+    private string modelFilter;
+    private string conditionFilter;
+    private decimal? maxPriceFilter;
+    private bool isAuthorized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            var roles = user.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+            if (roles.Contains("Admin"))
+            {
+                isAuthorized = true;
+                await LoadPhones();
+            }
+            else
+            {
+                Console.WriteLine("User is not authorized.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("User is not authenticated.");
+        }
+    }
+
+    private async Task LoadPhones()
+    {
+        try
+        {
+            phones = await Http.GetFromJsonAsync<List<PhoneModel>>("/api/phones");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelinten haussa: {ex.Message}");
+        }
+    }
+
+    private async Task FilterPhones()
+    {
+        var queryParams = new List<string>();
+
+        if (!string.IsNullOrEmpty(brandFilter))
+            queryParams.Add($"brand={Uri.EscapeDataString(brandFilter)}");
+
+        if (!string.IsNullOrEmpty(modelFilter))
+            queryParams.Add($"model={Uri.EscapeDataString(modelFilter)}");
+
+        if (!string.IsNullOrEmpty(conditionFilter))
+            queryParams.Add($"condition={Uri.EscapeDataString(conditionFilter)}");
+
+        if (maxPriceFilter.HasValue)
+            queryParams.Add($"maxPrice={maxPriceFilter}");
+
+        var url = "/api/phones";
+        if (queryParams.Any())
+            url += "?" + string.Join("&", queryParams);
+
+        try
+        {
+            phones = await Http.GetFromJsonAsync<List<PhoneModel>>(url);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelinten haussa: {ex.Message}");
+        }
+    }
+
+    private void ShowAddDialog()
+    {
+        newPhone = new PhoneModel
+            {
+                Brand = "",
+                Model = "",
+                Price = 0,
+                Description = "",
+                Condition = "Hyvä",
+                StockQuantity = 1
+            };
+    }
+
+    private void CloseAddDialog()
+    {
+        newPhone = null;
+    }
+
+    private async Task AddPhone()
+    {
+        if (newPhone == null) return;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/phones", newPhone);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPhones();
+                CloseAddDialog();
+                await JSRuntime.InvokeVoidAsync("alert", "Puhelin lisätty onnistuneesti!");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelimen lisäämisessä: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelimen lisäämisessä: {ex.Message}");
+        }
+    }
+
+    private void ShowEditDialog(PhoneModel phone)
+    {
+        editingPhone = new PhoneModel
+            {
+                PhoneID = phone.PhoneID,
+                Brand = phone.Brand,
+                Model = phone.Model,
+                Price = phone.Price,
+                Description = phone.Description,
+                Condition = phone.Condition,
+                StockQuantity = phone.StockQuantity
+            };
+    }
+
+    private void CloseEditDialog()
+    {
+        editingPhone = null;
+    }
+
+    private async Task SavePhone()
+    {
+        if (editingPhone == null) return;
+
+        try
+        {
+            var updateModel = new UpdatePhoneModel
+                {
+                    Brand = editingPhone.Brand,
+                    Model = editingPhone.Model,
+                    Price = editingPhone.Price,
+                    Description = editingPhone.Description,
+                    Condition = editingPhone.Condition,
+                    StockQuantity = editingPhone.StockQuantity
+                };
+
+            var response = await Http.PatchAsJsonAsync($"/api/phones/{editingPhone.PhoneID}", updateModel);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPhones();
+                CloseEditDialog();
+                await JSRuntime.InvokeVoidAsync("alert", "Puhelin päivitetty onnistuneesti!");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelimen päivityksessä: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelimen päivityksessä: {ex.Message}");
+        }
+    }
+
+    private async Task DeletePhone(int id)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "Haluatko varmasti poistaa tämän puhelimen?"))
+            return;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"/api/phones/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPhones();
+                await JSRuntime.InvokeVoidAsync("alert", "Puhelin poistettu onnistuneesti!");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelimen poistossa: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelimen poistossa: {ex.Message}");
+        }
+    }
+}

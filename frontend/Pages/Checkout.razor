@@ -1,0 +1,35 @@
+@page "/checkout"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@using Shared.Models
+
+<h3>Kassalle</h3>
+
+<p>Täällä voit maksaa tilauksesi.</p>
+
+<button class="btn btn-success" @onclick="CompletePurchase">Maksa</button>
+
+@code {
+    private async Task CompletePurchase()
+    {
+        try
+        {
+            var response = await Http.PostAsync("/api/cart/checkout", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Osto suoritettu onnistuneesti!");
+                NavigationManager.NavigateTo("/store");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Virhe ostoksen suorittamisessa: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe ostoksen suorittamisessa: {ex.Message}");
+        }
+    }
+}

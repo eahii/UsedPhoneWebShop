@@ -1,0 +1,49 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Used Phones Web Shop</PageTitle>
+
+<div class="page">
+    <!-- Sidebar containing the navigation menu -->
+    <div class="sidebar">
+        <NavMenu /> <!-- Contains navigation links and Dark Mode toggle -->
+    </div>
+
+    <!-- Main content area -->
+    <main class="main-content">
+        <!-- Top row with creator information -->
+        <div class="top-row px-4">
+            Created by:
+            <span class="creator-names">
+                <a href="https://github.com/eahii" target="_blank">Juuso Patjas</a>,
+                <a href="https://github.com/SmoAhl" target="_blank">Simo Ahlqvist</a> and
+                <a href="https://github.com/Leevi2006/" target="_blank">Leevi Snellman</a>.
+            </span>
+        </div>
+
+        <!-- User Information 
+        <AuthorizeView>
+            <Authorized Context="authContext">
+                <div class="user-info px-4">
+                    <p>
+                        <strong>Welcome, @authContext.User.Identity.Name!</strong>
+                    </p>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="user-info px-4">
+                    <p>
+                        <strong>Welcome, Guest!</strong>
+                    </p>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+-->
+        <!-- Content section where individual pages are rendered -->
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>

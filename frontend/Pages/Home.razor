@@ -1,0 +1,33 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>Tervetuloa</h3>
+
+<div class="mt-4">
+    <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/store"))">Siirry tästä
+        kauppaamme!</button>
+    <button class="btn btn-secondary" @onclick="@(() => NavigationManager.NavigateTo("/offer"))">Tai myy vanha
+        puhelimesi!</button>
+</div>
+
+<div class="mt-3">
+    @if (isUserLoggedIn == false)
+    {
+        <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/login"))">Kirjaudu sisään</button>
+        <button class="btn btn-secondary"
+            @onclick="@(() => NavigationManager.NavigateTo("/register"))">Rekisteröidy</button>
+    }
+</div>
+
+@code {
+    private bool isUserLoggedIn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isUserLoggedIn = authState.User.Identity?.IsAuthenticated ?? false;
+    }
+}

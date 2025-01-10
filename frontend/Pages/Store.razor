@@ -1,0 +1,175 @@
+@page "/store"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@using Shared.Models
+
+<h3>Kauppa</h3>
+
+<!-- Hakusuodattimet -->
+<div class="filters mb-4">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <input type="text" class="form-control" @bind="brandFilter" placeholder="Merkki" />
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" @bind="modelFilter" placeholder="Malli" />
+        </div>
+        <div class="col-md-3">
+            <select class="form-select" @bind="conditionFilter">
+                <option value="">Kaikki kunnot</option>
+                <option value="Uusi">Uusi</option>
+                <option value="Erinomainen">Erinomainen</option>
+                <option value="Hyvä">Hyvä</option>
+                <option value="Tyydyttävä">Tyydyttävä</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="number" class="form-control" @bind="maxPriceFilter" placeholder="Maksimihinta" />
+        </div>
+    </div>
+    <button class="btn btn-primary mt-3" @onclick="FilterPhones">Hae</button>
+</div>
+
+@if (phones == null)
+{
+    <p>Ladataan...</p>
+}
+else if (!phones.Any())
+{
+    <p>Puhelimia ei löytynyt.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var phone in phones)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@phone.Brand @phone.Model</h5>
+                        <p class="card-text">
+                            <strong>Hinta:</strong> @phone.Price €<br />
+                            <strong>Kunto:</strong> @phone.Condition<br />
+                            <strong>Varastossa:</strong> @phone.StockQuantity kpl
+                        </p>
+                        <p class="card-text">@phone.Description</p>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="input-group" style="max-width: 120px;">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    @onclick="() => UpdateQuantity(phone.PhoneID, -1)">-</button>
+                                <input type="number" class="form-control text-center" @bind="quantities[phone.PhoneID]"
+                                    min="1" />
+                                <button class="btn btn-outline-secondary" type="button"
+                                    @onclick="() => UpdateQuantity(phone.PhoneID, 1)">+</button>
+                            </div>
+                            <button class="btn btn-primary" @onclick="() => AddToCart(phone)">
+                                Lisää koriin
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PhoneModel> phones;
+    private Dictionary<int, int> quantities = new();
+    private string brandFilter;
+    private string modelFilter;
+    private string conditionFilter;
+    private decimal? maxPriceFilter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPhones();
+    }
+
+    private async Task LoadPhones()
+    {
+        try
+        {
+            phones = await Http.GetFromJsonAsync<List<PhoneModel>>("/api/phones");
+            foreach (var phone in phones)
+            {
+                if (!quantities.ContainsKey(phone.PhoneID))
+                {
+                    quantities[phone.PhoneID] = 1;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelinten haussa: {ex.Message}");
+        }
+    }
+
+    private async Task FilterPhones()
+    {
+        var queryParams = new List<string>();
+
+        if (!string.IsNullOrEmpty(brandFilter))
+            queryParams.Add($"brand={Uri.EscapeDataString(brandFilter)}");
+
+        if (!string.IsNullOrEmpty(modelFilter))
+            queryParams.Add($"model={Uri.EscapeDataString(modelFilter)}");
+
+        if (!string.IsNullOrEmpty(conditionFilter))
+            queryParams.Add($"condition={Uri.EscapeDataString(conditionFilter)}");
+
+        if (maxPriceFilter.HasValue)
+            queryParams.Add($"maxPrice={maxPriceFilter}");
+
+        var url = "/api/phones";
+        if (queryParams.Any())
+            url += "?" + string.Join("&", queryParams);
+
+        try
+        {
+            phones = await Http.GetFromJsonAsync<List<PhoneModel>>(url);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe puhelinten haussa: {ex.Message}");
+        }
+    }
+
+    private void UpdateQuantity(int phoneId, int change)
+    {
+        var newQuantity = quantities[phoneId] + change;
+        if (newQuantity >= 1)
+        {
+            quantities[phoneId] = newQuantity;
+        }
+    }
+
+    private async Task AddToCart(PhoneModel phone)
+    {
+        try
+        {
+            var cartItem = new CartItemModel
+                {
+                    PhoneID = phone.PhoneID,
+                    Quantity = quantities[phone.PhoneID]
+                };
+
+            var response = await Http.PostAsJsonAsync("/api/cart/items", cartItem);
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Tuote lisätty ostoskoriin!");
+                quantities[phone.PhoneID] = 1; // Reset quantity after adding to cart
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Virhe tuotteen lisäämisessä ostoskoriin.");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe: {ex.Message}");
+        }
+    }
+}

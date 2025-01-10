@@ -1,0 +1,351 @@
+/* frontend/wwwroot/css/app.css */
+
+/* CSS Variables for Theme Colors and Typography */
+:root {
+    --primary-color: #1b6ec2;
+    /* Bootstrap Primary */
+    --secondary-color: #555555;
+    --background-color: #f4f4f4;
+    --card-background: #ffffff;
+    --modal-background: rgba(0, 0, 0, 0.4);
+    --font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.25rem;
+    --font-size-sm: 0.875rem;
+    --border-radius: 8px;
+
+    /* Light Mode Specific Colors */
+    --text-color: #333333;
+    --link-color: var(--primary-color);
+    --link-hover-color: #165a99;
+    /* Darker shade of primary color */
+    --navbar-background: #f7f7f7;
+    --sidebar-background: #212529;
+    --sidebar-text-color: #d7d7d7;
+    --sidebar-active-background: var(--primary-color);
+    --sidebar-active-text-color: #ffffff;
+    --button-primary-color: #1b6ec2;
+    --button-primary-hover-color: #165a99;
+    /* Darker shade */
+    --button-success-color: #28a745;
+    --button-success-hover-color: #218838;
+    /* Darker shade */
+    --button-danger-color: #dc3545;
+    --button-danger-hover-color: #c82333;
+    /* Darker shade */
+    --button-warning-color: #ffc107;
+    --button-warning-hover-color: #e0a800;
+}
+
+/* Dark Mode Overrides */
+.dark-mode {
+    --background-color: #121212;
+    --card-background: #1e1e1e;
+    --text-color: #e0e0e0;
+    --link-color: #bb86fc;
+    --link-hover-color: #ffffff;
+    --navbar-background: #1f1f1f;
+    --sidebar-background: #1f1f1f;
+    --sidebar-text-color: #cccccc;
+    --sidebar-active-background: #bb86fc;
+    --sidebar-active-text-color: #ffffff;
+    --button-primary-color: #bb86fc;
+    --button-primary-hover-color: #a766e3;
+    /* Darker shade */
+    --button-success-color: #03dac6;
+    --button-success-hover-color: #00c4b4;
+    /* Darker shade */
+    --button-danger-color: #cf6679;
+    --button-danger-hover-color: #d75c6a;
+    /* Darker shade */
+    --button-warning-color: #ffb74d;
+    --button-warning-hover-color: #ff9933;
+}
+
+/* Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    font-size: var(--font-size-base);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-family: var(--font-family);
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+/* Links */
+a,
+.btn-link {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover,
+.btn-link:hover {
+    text-decoration: underline;
+    color: var(--link-hover-color);
+}
+
+/* Buttons */
+.btn {
+    border-radius: var(--border-radius);
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+    font-family: var(--font-family);
+}
+
+.btn-primary {
+    background-color: var(--button-primary-color);
+    border-color: var(--button-primary-color);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: var(--button-primary-hover-color);
+    border-color: var(--button-primary-hover-color);
+}
+
+.btn-success {
+    background-color: var(--button-success-color);
+    border-color: var(--button-success-color);
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background-color: var(--button-success-hover-color);
+    border-color: var(--button-success-hover-color);
+}
+
+.btn-danger {
+    background-color: var(--button-danger-color);
+    border-color: var(--button-danger-color);
+    color: #ffffff;
+}
+
+.btn-danger:hover {
+    background-color: var(--button-danger-hover-color);
+    border-color: var(--button-danger-hover-color);
+}
+
+.btn-warning {
+    background-color: var(--button-warning-color);
+    border-color: var(--button-warning-color);
+    color: #212529;
+}
+
+.btn-warning:hover {
+    background-color: var(--button-warning-hover-color);
+    border-color: var(--button-warning-hover-color);
+}
+
+/* Forms */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    border-radius: var(--border-radius);
+    border: 1px solid #ced4da;
+    padding: 0.375rem 0.75rem;
+    font-size: var(--font-size-base);
+    background-color: var(--card-background);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(27, 110, 194, 0.25);
+}
+
+/* Style for creator links */
+.top-row a {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.top-row a:hover {
+    color: var(--link-hover-color);
+    text-decoration: underline;
+}
+
+/* Ensure links adapt to dark mode */
+.dark-mode .top-row a {
+    color: var(--link-color);
+}
+
+.dark-mode .top-row a:hover {
+    color: var(--link-hover-color);
+    text-decoration: underline;
+}
+
+/* Ensure table text color adapts to dark mode */
+.dark-mode .table {
+    color: var(--text-color);
+}
+
+.dark-mode .table th,
+.dark-mode .table td {
+    color: var(--text-color);
+    background-color: var(--card-background);
+}
+
+/* Optional: Adjust table header background in dark mode */
+.dark-mode .table thead th {
+    background-color: var(--sidebar-active-background);
+    color: var(--sidebar-active-text-color);
+}
+
+/* Container for forms and content */
+.container {
+    max-width: 800px;
+}
+
+/* Remove unnecessary margins */
+.page {
+    width: 100%;
+}
+
+/* Ensure main-content uses the full width minus sidebar */
+.main-content {
+    margin-left: 250px;
+    /* Match sidebar width */
+    padding: 1rem;
+    transition: margin-left 0.3s ease;
+    width: calc(100% - 250px);
+}
+
+@media (max-width: 640.98px) {
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* Optional: Adjust content padding if necessary */
+.content {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Loading Progress */
+.loading-progress {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+}
+
+.loading-progress circle {
+    stroke: var(--primary-color);
+    stroke-width: 4;
+    fill: none;
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-progress-text {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+/* Responsive Typography */
+@media (max-width: 640.98px) {
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (min-width: 641px) {
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-size: 2rem;
+    }
+}
+
+/* Additional Styles for Offer Page */
+.offer-container {
+    background-color: var(--card-background);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    margin: 2rem auto;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Define main content margin to accommodate fixed sidebar */
+.main-content {
+    margin-left: 250px;
+    /* Same as sidebar width */
+}
+
+/* For smaller screens, remove the margin */
+@media (max-width: 640.98px) {
+    .main-content {
+        margin-left: 0;
+        padding: 1rem;
+    }
+}
+
+/* Optional: Adjust content padding if necessary */
+.content {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Dark Mode Overrides for Store Page */
+.dark-mode .card {
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border: 1px solid #444;
+}

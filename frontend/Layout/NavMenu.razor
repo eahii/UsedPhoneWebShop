@@ -1,0 +1,212 @@
+<!-- PhoneShop/frontend/Layout/NavMenu.razor -->
+@using Microsoft.AspNetCore.Components.Authorization
+@using frontend.Services
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components
+@using Blazored.LocalStorage
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject AuthService AuthService
+@inject IJSRuntime JSRuntime
+
+@implements IDisposable
+
+<!-- Top-level navigation bar -->
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Used Phones Web Shop</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<!-- Main navigation menu -->
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <!-- General Links: Visible to All Users -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/store" Match="NavLinkMatch.Prefix">
+                <span class="bi bi-shop" aria-hidden="true"></span> Kauppa
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/offer" Match="NavLinkMatch.Prefix">
+                <span class="bi bi-hand-thumbs-up" aria-hidden="true"></span> Myy Puhelimesi
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/cart" Match="NavLinkMatch.Prefix">
+                <span class="bi bi-cart" aria-hidden="true"></span> Ostoskori
+            </NavLink>
+        </div>
+
+        <!-- Admin-Only Links: Visible Only to Admin Users -->
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/manage-account" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-person-lines-fill" aria-hidden="true"></span> Hallitse Käyttäjiä
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/phones" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-phone" aria-hidden="true"></span> Puhelimet
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/pending-offers" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-clock-history" aria-hidden="true"></span> Vahvistettavat Arviot
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <!-- Customer-Only Links: Visible Only to Customer Users -->
+        @if (isCustomer)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/manage-customer-account" Match="NavLinkMatch.Prefix">
+                    <span class="bi bi-person-circle" aria-hidden="true"></span> Omat Tiedot
+                </NavLink>
+            </div>
+        }
+
+        <!-- Authentication Links: Login/Register for Guests, Logout for Authenticated Users -->
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <button class="btn btn-link nav-link" @onclick="HandleLogout">
+                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Kirjaudu Ulos
+                    </button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/login" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Kirjaudu Sisään
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/register" Match="NavLinkMatch.Prefix">
+                        <span class="bi bi-pencil-square" aria-hidden="true"></span> Rekisteröidy
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <!-- Dark Mode Toggle Button: Visible to All Users -->
+        <div class="nav-item px-3 mt-3">
+            <button class="btn btn-secondary w-100" @onclick="ToggleDarkMode">
+                <span class="bi @(isDarkMode ? "bi-sun-fill" : "bi-moon-fill")"></span>
+                @(isDarkMode ? "Light Mode" : "Dark Mode")
+            </button>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private bool isDarkMode = false;
+    private bool isUserLoggedIn;
+    private bool isAdmin;
+    private bool isCustomer;
+
+    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authStateProvider = AuthenticationStateProvider as AuthenticationStateProvider;
+        if (authStateProvider != null)
+        {
+            authStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        }
+        await CheckUserLoggedIn();
+        await CheckUserRoles();
+        StateHasChanged(); // Add this line to update the UI after checking roles
+        isDarkMode = await JSRuntime.InvokeAsync<bool>("checkDarkModePreference");
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        await CheckUserLoggedIn();
+        await CheckUserRoles(); // Ensure roles are checked when authentication state changes
+        StateHasChanged(); // Update UI after authentication state changes
+    }
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        NavigationManager.NavigateTo("/");
+        await CheckUserRoles(); // Ensure roles are reset after logout
+        await InvokeAsync(StateHasChanged); // Add this line to update the view after logout
+    }
+
+    private async Task ToggleDarkMode()
+    {
+        isDarkMode = !isDarkMode;
+        await JSRuntime.InvokeVoidAsync("toggleDarkMode");
+    }
+
+    private async Task CheckUserLoggedIn()
+    {
+        var token = await localStorage.GetItemAsync<string>("authToken");
+        isUserLoggedIn = !string.IsNullOrEmpty(token); // Check if the user is logged in
+        await CheckUserRoles(); // Ensure roles are checked after login
+        StateHasChanged(); // Päivitä UI, kun tieto on saatu
+    }
+
+    private async Task CheckUserRoles()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        isAdmin = user.IsInRole("Admin");
+        isCustomer = user.IsInRole("Customer");
+        StateHasChanged(); // Päivitä UI, kun roolit on tarkistettu
+    }
+
+    private async Task Logout()
+    {
+        var response = await Http.PostAsync("/api/auth/logout", null);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await localStorage.RemoveItemAsync("authToken");
+            isUserLoggedIn = false; // Päivitä kirjautumistila
+            isAdmin = false; // Reset isAdmin flag
+            isCustomer = false; // Reset isCustomer flag
+            StateHasChanged(); // Päivitä UI
+            NavigationManager.NavigateTo("/");
+        }
+        else
+        {
+            Console.WriteLine("Uloskirjautuminen epäonnistui.");
+        }
+    }
+
+    public void Dispose()
+    {
+        var authStateProvider = AuthenticationStateProvider as AuthenticationStateProvider;
+        if (authStateProvider != null)
+        {
+            authStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        }
+    }
+
+    [Inject]
+    private HttpClient Http { get; set; }
+
+    [Inject]
+    private ILocalStorageService localStorage { get; set; }
+}

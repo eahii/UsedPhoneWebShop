@@ -1,0 +1,194 @@
+@page "/pending-offers"
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@using Shared.Models
+@using System.Security.Claims
+
+<h3>Vahvistettavat Arviot</h3>
+
+@if (!isAuthorized)
+{
+    <div class="alert alert-danger">
+        <strong>Pääsy estetty:</strong> Sinulla ei ole oikeuksia tähän toimintoon.
+    </div>
+}
+else
+{
+    @if (isLoading)
+    {
+        <p>Ladataan vahvistettavia arvioita...</p>
+    }
+    else if (offers == null || !offers.Any())
+    {
+        <p>Ei vahvistettavia arvioita.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Merkki</th>
+                        <th>Malli</th>
+                        <th>Alkuperäinen Hinta (€)</th>
+                        <th>Ikä (vuosina)</th>
+                        <th>Yleinen Kunto (%)</th>
+                        <th>Akunkesto (%)</th>
+                        <th>Näytön Kunto (%)</th>
+                        <th>Kameran Kunto (%)</th>
+                        <th>Ostohinta (€)</th>
+                        <th>Kaupan Hinta (€)</th>
+                        <th>Toimenpiteet</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var offer in offers)
+                    {
+                        <tr>
+                            <td>@offer.PhoneBrand</td>
+                            <td>@offer.PhoneModel</td>
+                            <td>@offer.OriginalPrice.ToString("C2")</td>
+                            <td>@offer.PhoneAge</td>
+                            <td>@offer.OverallCondition%</td>
+                            <td>@offer.BatteryLife%</td>
+                            <td>@offer.ScreenCondition%</td>
+                            <td>@offer.CameraCondition%</td>
+                            <td>@CalculateResellValue(offer).ToString("C2")</td>
+                            <td>@CalculateRetailValue(offer).ToString("C2")</td>
+                            <td>
+                                <button class="btn btn-success me-2" @onclick="() => AcceptOffer(offer.OfferID)">Hyväksy</button>
+                                <button class="btn btn-danger me-2" @onclick="() => DeclineOffer(offer.OfferID)">Hylkää</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private List<OfferModel> offers;
+    private bool isAuthorized = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            var roles = user.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+            if (roles.Contains("Admin"))
+            {
+                isAuthorized = true;
+                await LoadPendingOffers();
+            }
+            else
+            {
+                Console.WriteLine("User is not authorized.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("User is not authenticated.");
+        }
+    }
+
+    private async Task LoadPendingOffers()
+    {
+        try
+        {
+            isLoading = true;
+            offers = await Http.GetFromJsonAsync<List<OfferModel>>("/api/offers/pending");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe arvioiden lataamisessa: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private decimal CalculateResellValue(OfferModel offer)
+    {
+        decimal resellValue = offer.OriginalPrice * 0.7m
+        - (offer.PhoneAge * 20)
+        - (100 - offer.OverallCondition)
+        - (100 - offer.BatteryLife)
+        - (100 - offer.ScreenCondition)
+        - (100 - offer.CameraCondition);
+
+        if (resellValue < 0) resellValue = 0;
+
+        return resellValue;
+    }
+
+    private decimal CalculateRetailValue(OfferModel offer)
+    {
+        // Kaupan hinta on ostohinta + 30 %
+        return CalculateResellValue(offer) * 1.3m;
+    }
+
+    private async Task AcceptOffer(int offerId)
+    {
+        try
+        {
+            var offer = offers.FirstOrDefault(o => o.OfferID == offerId);
+            if (offer != null)
+            {
+                var retailPrice = CalculateRetailValue(offer);
+
+                // Päivitä API:hin hyväksyntä ja kaupan hinta
+                var response = await Http.PostAsJsonAsync($"/api/offers/accept/{offerId}", new
+                {
+                    RetailPrice = retailPrice
+                });
+
+                if (response.IsSuccessStatusCode)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"Hyväksytty tarjous ID: {offerId}, kaupan hinta: {retailPrice:C2}");
+                    await LoadPendingOffers(); // Lataa arvioiden lista uudelleen
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    await JSRuntime.InvokeVoidAsync("alert", $"Virhe tarjouksen hyväksymisessä: {error}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe tarjouksen hyväksymisessä: {ex.Message}");
+        }
+    }
+
+    private async Task DeclineOffer(int offerId)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"/api/offers/decline/{offerId}", new { });
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Hylätty tarjous ID: {offerId}");
+                await LoadPendingOffers();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", $"Virhe tarjouksen hylkäämisessä: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Virhe tarjouksen hylkäämisessä: {ex.Message}");
+        }
+    }
+}
